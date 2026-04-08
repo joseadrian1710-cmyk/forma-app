@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+
+body {
+  font-family: Arial;
+  padding: 15px;
+}
+
+.titulo {
+  background: #2c5aa0;
+  color: white;
+  padding: 10px;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.sub {
+  background: #dbe9ff;
+  padding: 6px;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+.resultado {
+  border: 1px solid #ccc;
+  padding: 12px;
+  margin-top: 10px;
+  min-height: 220px;
+}
+
+#codigo {
+  width: 220px;
+  padding: 8px;
+  font-size: 15px;
+  text-align: center;
+}
+
+button {
+  padding: 8px 15px;
+  background: #2c5aa0;
+  color: white;
+  border: none;
+  cursor: pointer;
+  margin-right: 5px;
+}
+
+button:hover {
+  background: #1e3f73;
+}
+
+img {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+img:hover {
+  transform: scale(1.02);
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 999;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.8);
+}
+
+.modal img {
+  display: block;
+  margin: auto;
+  max-width: 90%;
+  max-height: 90%;
+  margin-top: 5%;
+}
+
+.explicacion {
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="titulo">Consulta de elemento</div>
+
+<div class="explicacion">
+
+  <strong>Formato:</strong> A-1_R-1<br>
+  <strong>Estructura:</strong> Edificio - Número _ Tipo - Número<br><br>
+
+  <strong>Nomenclatura de edificios:</strong><br>
+  A = Bloque A<br>
+  B = Bloque B<br>
+  C = Bloque C<br>
+  ...etc<br><br>
+
+  <strong>Tipos:</strong><br>
+  R = Rampa<br>
+  E = Escalera<br>
+  P = Parqueo<br>
+  D = Detalle
+
+</div>
+
+<input id="codigo" placeholder="Ej: A-1_R-1">
+
+<br><br>
+
+<button onclick="buscar()">Consultar</button>
+<button onclick="limpiar()">Limpiar</button>
+
+<p id="estado"></p>
+
+<div class="titulo">Resultado</div>
+
+<div class="resultado">
+
+  <div class="sub">Código</div>
+  <p id="verCodigo"></p>
+
+  <div class="sub">Descripción</div>
+  <p id="verDesc"></p>
+
+  <div class="sub">Cumplimiento</div>
+  <p id="verCumplimiento"></p>
+
+  <div class="sub">Imágenes</div>
+  <img id="verImg1" width="100%" onclick="zoom(this.src)">
+  <br><br>
+  <img id="verImg2" width="100%" onclick="zoom(this.src)">
+
+</div>
+
+<div id="modal" class="modal" onclick="cerrarZoom()">
+  <img id="imgZoom">
+</div>
+
+<script>
+
+const API = "https://script.google.com/macros/s/AKfycbw6A8LIJkpEE0bbbJQ7U1UcmvRlCs8w12vMFtYAG_sgp-tBsH2rtSyf5Upf_SDIxwchCg/exec";
+
+// MAYÚSCULAS
+document.getElementById("codigo").addEventListener("input", function() {
+  this.value = this.value.toUpperCase();
+});
+
+// BUSCAR
+function buscar() {
+
+  let codigo = document.getElementById("codigo").value.trim().toUpperCase();
+
+  if (!codigo) {
+    document.getElementById("estado").innerText = "Escribe un código";
+    return;
+  }
+
+  document.getElementById("estado").innerText = "Buscando...";
+
+  fetch(API + "?codigo=" + encodeURIComponent(codigo))
+    .then(res => res.json())
+    .then(data => {
+
+      limpiarResultado();
+
+      if (data && data.length > 0) {
+
+        let item = data[0];
+
+        document.getElementById("verCodigo").innerText = item.codigo || "";
+        document.getElementById("verDesc").innerText = item.descripcion || "";
+
+        let cumplimiento = item.cumplimiento || "";
+        let el = document.getElementById("verCumplimiento");
+        el.innerText = cumplimiento;
+
+        let texto = cumplimiento.toLowerCase();
+
+if (texto.includes("no cumple") || texto.includes("incumple")) {
+  el.style.color = "red"; // 🔴 prioridad máxima
+} else if (texto.includes("parcial")) {
+  el.style.color = "orange"; // 🟡
+} else if (texto.includes("cumple")) {
+  el.style.color = "green"; // 🟢
+} else {
+  el.style.color = "black"; // ⚪ por si está vacío o raro
+}
+
+        if (item.img1) document.getElementById("verImg1").src = item.img1;
+        if (item.img2) document.getElementById("verImg2").src = item.img2;
+
+        document.getElementById("estado").innerText = "Elemento encontrado ✔";
+
+      } else {
+        document.getElementById("estado").innerText =
+        "Este código no existe. Verifica que esté bien escrito.";
+      }
+    })
+    .catch(() => {
+      document.getElementById("estado").innerText = "Error de consulta ❌";
+    });
+}
+
+// LIMPIAR TODO
+function limpiar() {
+  document.getElementById("codigo").value = "";
+  limpiarResultado();
+  document.getElementById("estado").innerText = "";
+}
+
+// LIMPIAR RESULTADO
+function limpiarResultado() {
+  document.getElementById("verCodigo").innerText = "";
+  document.getElementById("verDesc").innerText = "";
+  document.getElementById("verCumplimiento").innerText = "";
+  document.getElementById("verCumplimiento").style.color = "black";
+  document.getElementById("verImg1").src = "";
+  document.getElementById("verImg2").src = "";
+}
+
+// ZOOM
+function zoom(src) {
+  if (!src) return;
+  document.getElementById("modal").style.display = "block";
+  document.getElementById("imgZoom").src = src;
+}
+
+// CERRAR ZOOM
+function cerrarZoom() {
+  document.getElementById("modal").style.display = "none";
+}
+
+</script>
+
+</body>
+</html>
